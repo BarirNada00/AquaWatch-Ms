@@ -1,0 +1,253 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:2.14.0-pg15
+    container_name: aqua-sense-timescaledb
+    environment:
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: aquawatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - tsdata:/var/lib/postgresql/data
+      - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
+    networks:
+      - aqua_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: aqua-sense-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf:rw
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - aqua_network  
+    
+  anomaly_detector:
+    build:
+      context: .
+      dockerfile: anomaly_detector/Dockerfile
+    container_name: aqua-sense-anomaly-detector
+    environment:
+      - TIMESCALEDB_DSN=postgresql://aquawatch:example@timescaledb:5432/aquawatch
+      - ANOMALIES_FILE=/app/data/anomalies.json
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - MQTT_TOPIC=sensors/readings
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aqua_network
+
+  sensor_simulator:
+    build:
+      context: .
+      dockerfile: sensor_simulator/Dockerfile
+    container_name: aqua-sense-sensor-simulator
+    environment:
+      - SENSOR_ID=sensor-01
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - MQTT_TOPIC=sensors/readings
+    depends_on:
+      anomaly_detector:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    networks:
+      - aqua_network
+
+
+  minio:
+    image: minio/minio
+    container_name: aqua-sense-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - aqua_network
+
+    
+  satellite_processor:
+    build:
+      context: ./satellite_processor
+      dockerfile: Dockerfile
+    container_name: aqua-sense-satellite_processor
+    environment:
+      SENTINELHUB_CLIENT_ID: "6b5b432e-ab58-40d0-94c1-63d6a7dadddf"
+      SENTINELHUB_CLIENT_SECRET: "TJGJAzsKQ004wjrpTbbtzjxHy1yDF0un"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_BUCKET: "satellite-data"
+    volumes:
+      - ./satellite_processor/aois:/app/aois
+    depends_on:
+      - minio
+    ports:
+      - "5000:5000"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/satellite_processor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - aqua_network
+
+    
+  postgis:
+    image: postgis/postgis:15-3.4
+    container_name: aqua-sense-postgis
+    environment:
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: aquawatch_gis
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    networks:
+      - aqua_network
+
+  api-sig:
+    build:
+      context: ./api-sig
+      dockerfile: Dockerfile
+    container_name: aqua-sense-api-sig
+    environment:
+      TIMESCALEDB_DSN: "postgresql://aquawatch:example@timescaledb:5432/aquawatch"
+      POSTGIS_DSN: "postgresql://aquawatch:example@postgis:5432/aquawatch_gis"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - timescaledb
+      - postgis
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - aqua_network
+
+  geoserver:
+    image: docker.osgeo.org/geoserver:2.28.0
+    container_name: aqua-sense-geoserver
+    ports:
+      - "8080:8080"
+    environment:
+      - GEOSERVER_ADMIN_USER=admin
+      - GEOSERVER_ADMIN_PASSWORD=geoserver
+      - CORS_ENABLED=true
+      - CORS_ALLOWED_ORIGINS=*
+      - CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS
+      - CORS_ALLOWED_HEADERS=*
+    depends_on:
+      - postgis
+    networks:
+      - aqua_network
+  
+  api_service:
+    build:
+      context: .
+      dockerfile: api_service/Dockerfile
+    container_name: aqua-sense-api-service
+    ports:
+      - "8004:8000"  # Expose public API port
+    environment:
+      # ✅ AJOUTEZ CETTE LIGNE :
+      POSTGIS_DSN: "postgresql://aquawatch:example@postgis:5432/aquawatch_gis"
+    depends_on:
+      anomaly_detector:
+        condition: service_healthy # Depends on detector for fetching anomalies
+      ollama:
+        condition: service_healthy # Depends on Ollama for LLM functionality
+    volumes:
+      - ./data:/app/data # Shared volume to read summary.json (if still used for persistence)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://0.0.0.0:8000/status"] # Check if FastAPI status is up
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aqua_network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aqua-sense-ollama
+    ports:
+      - "11434:11434" # Expose Ollama port for potential direct host interaction
+    volumes:
+      - ./models:/root/.ollama # Persist Ollama models
+      - ./ollama_entrypoint.sh:/ollama_entrypoint.sh # Custom entrypoint script
+    # Command to pull the mistral model on startup, then serve Ollama
+    entrypoint: ["/usr/bin/bash", "/ollama_entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://0.0.0.0:11434"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aqua_network
+
+  web-unifiee:
+    build:
+      context: ./web-unifiee
+      dockerfile: Dockerfile
+    container_name: aqua-sense-web-unifiee
+    ports:
+      - "3000:80" # Expose web interface on port 3000
+    depends_on:
+      api-sig:
+        condition: service_healthy
+      satellite_processor:
+        condition: service_healthy
+    networks:
+      - aqua_network
+
+
+
+
+ 
+volumes:
+  tsdata:
+  data:
+  mosquitto_data:
+  mosquitto_log:
+  minio_data:
+  postgis_data:
+  models:
+ 
+  
+networks:
+  aqua_network:
+    driver: bridge

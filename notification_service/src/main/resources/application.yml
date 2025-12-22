@@ -1,0 +1,77 @@
+server:
+  port: 8003
+
+spring:
+  application:
+    name: notification-service
+  
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:mongodb}
+      port: ${MONGODB_PORT:27017}
+      database: ${MONGODB_DATABASE:aquawatch_notifications}
+      username: ${MONGODB_USERNAME:}
+      password: ${MONGODB_PASSWORD:}
+      authentication-database: ${MONGODB_AUTH_DB:admin}
+  
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    from: ${SMTP_FROM:noreply@aquawatch.com}
+
+# Twilio Configuration
+twilio:
+  account:
+    sid: ${TWILIO_ACCOUNT_SID:}
+  auth:
+    token: ${TWILIO_AUTH_TOKEN:}
+  phone:
+    number: ${TWILIO_PHONE_NUMBER:}
+
+# SendGrid Configuration
+sendgrid:
+  api:
+    key: ${SENDGRID_API_KEY:}
+  from:
+    email: ${SENDGRID_FROM_EMAIL:}
+
+# Email Provider (sendgrid or smtp)
+email:
+  provider: ${EMAIL_PROVIDER:sendgrid}
+
+# Alert Configuration
+alert:
+  default:
+    phone: ${ALERT_DEFAULT_PHONE:}
+    email: ${ALERT_DEFAULT_EMAIL:}
+  enable:
+    sms: ${ALERT_ENABLE_SMS:true}
+    email: ${ALERT_ENABLE_EMAIL:true}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.aquawatch.notification: INFO
+    org.springframework: WARN
+
+

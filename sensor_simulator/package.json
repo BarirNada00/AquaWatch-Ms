@@ -1,0 +1,14 @@
+{
+  "name": "sensor-simulator",
+  "version": "1.0.0",
+  "description": "AquaWatch-MS Sensor Simulator in Node.js",
+  "main": "simulator.js",
+  "type": "module",
+  "scripts": {
+    "start": "node simulator.js"
+  },
+  "dependencies": {
+    "mqtt": "^5.3.0",
+    "dotenv": "^16.0.0"
+  }
+}

@@ -1,0 +1,435 @@
+{
+	"info": {
+		"_postman_id": "aquawatch-notification-service",
+		"name": "AquaWatch Notification Service",
+		"description": "Complete API collection for AquaWatch Notification & Alert Microservice",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8003/api/alerts/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8003",
+					"path": [
+						"api",
+						"alerts",
+						"health"
+					]
+				},
+				"description": "Check if the notification service is running and healthy"
+			}
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "Send SMS",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to\": \"+1234567890\",\n  \"message\": \"Alert: Temperature spike detected at sensor-01. Value: 42.3°C\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8003/api/notifications/sms",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"notifications",
+								"sms"
+							]
+						},
+						"description": "Send SMS notification via Twilio. Replace phone number with your actual number in E.164 format."
+					}
+				},
+				{
+					"name": "Send Email",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"to\": \"test@example.com\",\n  \"subject\": \"Water Quality Alert - Temperature Spike\",\n  \"message\": \"<h2>Alert Notification</h2><p><strong>Sensor:</strong> sensor-01</p><p><strong>Parameter:</strong> Temperature</p><p><strong>Value:</strong> 42.3°C</p><p><strong>Status:</strong> Exceeds threshold of 35.0°C</p><p><strong>Action Required:</strong> Please investigate immediately.</p>\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8003/api/notifications/email",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"notifications",
+								"email"
+							]
+						},
+						"description": "Send email notification via SendGrid or SMTP. Replace email with your actual email address."
+					}
+				}
+			]
+		},
+		{
+			"name": "Alerts",
+			"item": [
+				{
+					"name": "Create Alert",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"alertType\": \"ANOMALY\",\n  \"severity\": \"HIGH\",\n  \"title\": \"Temperature Spike Detected\",\n  \"message\": \"Temperature exceeded threshold: 40.5°C at sensor-01\",\n  \"sensorId\": \"sensor-01\",\n  \"anomalyId\": \"anomaly-123\",\n  \"recipientPhone\": \"+1234567890\",\n  \"recipientEmail\": \"alerts@aquawatch.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8003/api/alerts",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts"
+							]
+						},
+						"description": "Create a new alert. Will automatically send SMS and Email if recipients are provided."
+					}
+				},
+				{
+					"name": "Create Alert from Anomaly",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"anomaly-abc123\",\n  \"type\": \"SPIKE\",\n  \"timestamp\": \"2024-01-15T10:30:00\",\n  \"sensorId\": \"sensor-01\",\n  \"parameter\": \"temperature\",\n  \"value\": 42.3,\n  \"message\": \"Temperature spike detected: 42.3°C exceeds threshold of 35.0°C\",\n  \"latitude\": 33.5731,\n  \"longitude\": -7.5898,\n  \"recipientPhone\": \"+1234567890\",\n  \"recipientEmail\": \"alerts@aquawatch.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:8003/api/alerts/anomaly",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts",
+								"anomaly"
+							]
+						},
+						"description": "Create an alert from an anomaly detection event. Used for integration with anomaly detector service."
+					}
+				},
+				{
+					"name": "Get All Alerts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/alerts",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts"
+							]
+						},
+						"description": "Retrieve all alerts from the database"
+					}
+				},
+				{
+					"name": "Get Alert by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/alerts/{{alertId}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts",
+								"{{alertId}}"
+							]
+						},
+						"description": "Get a specific alert by its ID. Set alertId variable in Postman environment."
+					}
+				},
+				{
+					"name": "Get Alerts by Sensor",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/alerts/sensor/sensor-01",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts",
+								"sensor",
+								"sensor-01"
+							]
+						},
+						"description": "Get all alerts for a specific sensor"
+					}
+				},
+				{
+					"name": "Get Alerts by Severity - CRITICAL",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/alerts/severity/CRITICAL",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts",
+								"severity",
+								"CRITICAL"
+							]
+						},
+						"description": "Get all alerts with CRITICAL severity"
+					}
+				},
+				{
+					"name": "Get Alerts by Severity - HIGH",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/alerts/severity/HIGH",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"alerts",
+								"severity",
+								"HIGH"
+							]
+						},
+						"description": "Get all alerts with HIGH severity"
+					}
+				}
+			]
+		},
+		{
+			"name": "Notification Logs",
+			"item": [
+				{
+					"name": "Get All Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/logs",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"logs"
+							]
+						},
+						"description": "Get all notification logs"
+					}
+				},
+				{
+					"name": "Get Logs by Type - SMS",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/logs/type/SMS",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"logs",
+								"type",
+								"SMS"
+							]
+						},
+						"description": "Get all SMS notification logs"
+					}
+				},
+				{
+					"name": "Get Logs by Type - EMAIL",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/logs/type/EMAIL",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"logs",
+								"type",
+								"EMAIL"
+							]
+						},
+						"description": "Get all email notification logs"
+					}
+				},
+				{
+					"name": "Get Logs by Status - SUCCESS",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/logs/status/SUCCESS",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"logs",
+								"status",
+								"SUCCESS"
+							]
+						},
+						"description": "Get all successfully sent notifications"
+					}
+				},
+				{
+					"name": "Get Logs by Status - FAILED",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/logs/status/FAILED",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"logs",
+								"status",
+								"FAILED"
+							]
+						},
+						"description": "Get all failed notifications"
+					}
+				},
+				{
+					"name": "Get Logs by Alert ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8003/api/logs/alert/{{alertId}}",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8003",
+							"path": [
+								"api",
+								"logs",
+								"alert",
+								"{{alertId}}"
+							]
+						},
+						"description": "Get all notification logs for a specific alert. Set alertId variable in Postman environment."
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8003",
+			"type": "string"
+		},
+		{
+			"key": "alertId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

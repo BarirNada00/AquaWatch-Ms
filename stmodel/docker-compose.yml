@@ -1,0 +1,135 @@
+version: "3.9"
+
+services:
+  # =========================
+  # DATABASE (PostgreSQL + TimescaleDB + PostGIS)
+  # =========================
+  database:
+    image: timescale/timescaledb-postgis:latest-pg15
+    container_name: aquawatch-db
+    environment:
+      POSTGRES_DB: aquawatch
+      POSTGRES_USER: aquawatch_user
+      POSTGRES_PASSWORD: aquawatch_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - aquawatch-network
+
+  # =========================
+  # MINIO (Stockage objets)
+  # =========================
+  minio:
+    image: minio/minio:latest
+    container_name: aquawatch-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - aquawatch-network
+
+  # =========================
+  # MQTT BROKER (Mosquitto) - REQUIRED FOR SENSOR DATA
+  # =========================
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: aquawatch-mqtt
+    ports:
+      - "1883:1883"
+    restart: unless-stopped
+    networks:
+      - aquawatch-network
+
+  # =========================
+  # STMODEL SERVICE (IA)
+  # =========================
+  stmodel-service:
+    build: ./stmodel
+    container_name: aquawatch-stmodel
+    env_file:
+      - .env
+    ports:
+      - "8003:8003"
+    depends_on:
+      - mosquitto
+    networks:
+      - aquawatch-network
+    restart: unless-stopped
+
+  # =========================
+  # INGESTION SERVICE
+  # =========================
+  ingestion-service:
+    build: ./ingestion-service
+    container_name: aquawatch-ingestion
+    env_file:
+      - .env
+    depends_on:
+      - database
+      - minio
+      - mosquitto
+    networks:
+      - aquawatch-network
+
+  # =========================
+  # ALERT SERVICE
+  # =========================
+  alert-service:
+    build: ./alert-service
+    container_name: aquawatch-alert
+    env_file:
+      - .env
+    depends_on:
+      - database
+    networks:
+      - aquawatch-network
+
+  # =========================
+  # API GATEWAY
+  # =========================
+  api-gateway:
+    build: ./api-gateway
+    container_name: aquawatch-gateway
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - stmodel-service
+      - ingestion-service
+      - alert-service
+    networks:
+      - aquawatch-network
+
+  # =========================
+  # SIG SERVICE (Cartographie)
+  # =========================
+  sig-service:
+    build: ./sig-service
+    container_name: aquawatch-sig
+    env_file:
+      - .env
+    ports:
+      - "7000:7000"
+    depends_on:
+      - database
+      - minio
+    networks:
+      - aquawatch-network
+
+networks:
+  aquawatch-network:
+    driver: bridge
+
+volumes:
+  db_data:
+  minio_data:
