@@ -149,60 +149,64 @@ services:
         stage('Infrastructure') {
             steps {
                 echo '🗄️ Démarrage Infrastructure...'
-                sh "${DOCKER_COMPOSE_CMD} up -d timescaledb postgis mosquitto geoserver minio ollama eureka-server"
-                sh 'sleep 15'
+                bat "${DOCKER_COMPOSE_CMD} up -d timescaledb postgis mosquitto geoserver minio ollama eureka-server"
+                bat 'timeout /t 15 /nobreak > nul'
             }
         }
 
         stage('Anomaly Detector') {
             steps {
-                sh "${DOCKER_COMPOSE_CMD} up -d --build anomaly_detector"
+                bat "${DOCKER_COMPOSE_CMD} up -d --build anomaly_detector"
             }
         }
 
         stage('API Service') {
             steps {
-                sh "${DOCKER_COMPOSE_CMD} up -d --build api_service"
+                bat "${DOCKER_COMPOSE_CMD} up -d --build api_service"
             }
         }
 
         stage('API SIG') {
             steps {
-                sh "${DOCKER_COMPOSE_CMD} up -d --build api_sig"
+                bat "${DOCKER_COMPOSE_CMD} up -d --build api_sig"
             }
         }
 
         stage('Satellite Processor') {
             steps {
-                sh "${DOCKER_COMPOSE_CMD} up -d --build satellite_processor"
+                bat "${DOCKER_COMPOSE_CMD} up -d --build satellite_processor"
             }
         }
 
         stage('Sensor Simulator') {
             steps {
-                sh "${DOCKER_COMPOSE_CMD} up -d --build sensor_simulator"
+                bat "${DOCKER_COMPOSE_CMD} up -d --build sensor_simulator"
             }
         }
 
         stage('Web Interface') {
             steps {
-                sh "${DOCKER_COMPOSE_CMD} up -d --build web_unifiee"
-                sh 'sleep 10'
+                bat "${DOCKER_COMPOSE_CMD} up -d --build web_unifiee"
+                bat 'timeout /t 10 /nobreak > nul'
             }
         }
 
         stage('Health Checks') {
             steps {
                 script {
-                    // Test des endpoints API
-                    sh 'curl -f http://host.docker.internal:18000/health || exit 1'
-                    sh 'curl -f http://host.docker.internal:18001/health || exit 1'
-                    sh 'curl -f http://host.docker.internal:18002/health || exit 1'
-
-                    // Test Eureka discovery
-                    sh 'curl -f http://host.docker.internal:18761 || exit 1'
-
-                    echo "✅ Tous les health checks sont passés!"
+                    // Test des endpoints API avec PowerShell
+                    powershell '''
+                        try {
+                            Invoke-WebRequest -Uri "http://host.docker.internal:18000/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:18001/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:18002/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:18761" -Method GET -TimeoutSec 10
+                            Write-Host "✅ Tous les health checks sont passés!"
+                        } catch {
+                            Write-Error "❌ Health check failed: $_"
+                            exit 1
+                        }
+                    '''
                 }
             }
         }
@@ -210,8 +214,8 @@ services:
 
     post {
         always {
-            sh "${DOCKER_COMPOSE_CMD} down -v || true"
-            sh 'docker system prune -f || true'
+            bat "${DOCKER_COMPOSE_CMD} down -v || exit 0"
+            bat 'docker system prune -f || exit 0'
         }
 
         success {
