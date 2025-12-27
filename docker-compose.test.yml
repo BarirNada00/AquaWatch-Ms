@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: aqua-sense-test-runner
+    environment:
+      - PYTHONPATH=/app
+      - TEST=true
+    volumes:
+      - ./data:/app/data
+    networks:
+      - aqua_network
+    depends_on:
+      - timescaledb
+      - postgis
+    command: ["pytest", "--tb=short", "--cov=.", "--cov-report=xml"]
+
+  timescaledb:
+    image: timescale/timescaledb:2.14.0-pg15
+    container_name: aqua-sense-timescaledb-test
+    environment:
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: aquawatch
+    ports:
+      - "5433:5432"
+    volumes:
+      - tsdata_test:/var/lib/postgresql/data
+      - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
+    networks:
+      - aqua_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  postgis:
+    image: postgis/postgis:15-3.3
+    container_name: aqua-sense-postgis-test
+    environment:
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: aquawatch_gis
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgis_data_test:/var/lib/postgresql/data
+      - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
+    networks:
+      - aqua_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tsdata_test:
+  postgis_data_test:
+
+networks:
+  aqua_network:
+    driver: bridge

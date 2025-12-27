@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    image: springcloud/eureka
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_INSTANCE_HOSTNAME=eureka-server
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+
+  api-service:
+    build: ./api_service
+    ports:
+      - "8000:8000"
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+      - DATABASE_URL=postgresql://user:password@timescaledb:5432/aquawatch
+    depends_on:
+      - eureka-server
+      - timescaledb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api-sig:
+    build: ./api-sig
+    ports:
+      - "8001:8001"
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+      - DATABASE_URL=postgresql://user:password@postgis:5432/aquawatch
+    depends_on:
+      - eureka-server
+      - postgis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  anomaly-detector:
+    build: ./anomaly_detector
+    ports:
+      - "8002:8002"
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  satellite-processor:
+    build: ./satellite_processor
+    ports:
+      - "8003:8003"
+    environment:
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_DB: aquawatch
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d aquawatch"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgis:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: aquawatch
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      - ./api-sig/init_postgis.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d aquawatch"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  timescale_data:
+  postgis_data:
