@@ -1,23 +1,5 @@
-# Python
-__pycache__/
+node_modules/
+models/models/blobs/
 *.pyc
-*.pyo
-*.pyd
-
-# Environment
-.env
-
-# Runtime data
-data/*.json
-
-# SSH keys / models
-models/id_ed25519
-models/id_ed25519.pub
-models/models/
-
-# Docker
 *.log
-
-# OS
 .DS_Store
-Thumbs.db
