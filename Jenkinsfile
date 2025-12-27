@@ -149,7 +149,7 @@ services:
         stage('Infrastructure') {
             steps {
                 echo '🗄️ Démarrage Infrastructure...'
-                bat "${DOCKER_COMPOSE_CMD} up -d timescaledb postgis mosquitto geoserver minio ollama eureka-server"
+                bat "${DOCKER_COMPOSE_CMD} up -d eureka-server timescaledb postgis mosquitto geoserver minio ollama"
                 bat 'timeout /t 15 /nobreak > nul'
             }
         }

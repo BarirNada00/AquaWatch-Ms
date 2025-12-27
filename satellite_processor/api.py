@@ -6,9 +6,19 @@ from minio import Minio
 from minio.error import S3Error
 from datetime import datetime
 from flask_cors import CORS
+from py_eureka_client.eureka_client import EurekaClient
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize Eureka client
+eureka_client = EurekaClient(
+    app_name='satellite-processor',
+    eureka_server="http://eureka-server:8761/eureka/",
+    instance_host='satellite-processor',
+    instance_port=5000
+)
+eureka_client.register()
 
 # Create a blueprint for satellite processor routes
 satellite_bp = Blueprint('satellite_processor', __name__, url_prefix='/satellite_processor')

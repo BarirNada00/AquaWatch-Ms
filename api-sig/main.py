@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from py_eureka_client.eureka_client import EurekaClient
 
 # Configuration des logs
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +31,15 @@ app = FastAPI(
     description="API REST/GeoJSON pour les données environnementales",
     version="1.0.0"
 )
+
+# Initialize Eureka client
+eureka_client = EurekaClient(
+    app_name='api-sig',
+    eureka_server="http://eureka-server:8761/eureka/",
+    instance_host='api-sig',
+    instance_port=8001
+)
+eureka_client.register()
 
 # CORS pour permettre l'accès depuis les interfaces web
 app.add_middleware(
