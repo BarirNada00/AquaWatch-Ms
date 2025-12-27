@@ -13,7 +13,7 @@ pipeline {
                 echo '📥 Récupération du code...'
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: '*/main']],
+                    branches: [[name: '*/master']],
                     extensions: [[$class: 'CloneOption', depth: 1, shallow: true, timeout: 30, noTags: true]],
                     userRemoteConfigs: [[url: 'https://github.com/BarirNada00/AquaWatch-Ms.git']]
                 ])
