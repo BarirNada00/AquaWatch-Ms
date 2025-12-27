@@ -154,21 +154,15 @@ services:
             }
         }
 
+        stage('Sensor Simulator') {
+            steps {
+                bat "${DOCKER_COMPOSE_CMD} up -d --build sensor_simulator"
+            }
+        }
+
         stage('Anomaly Detector') {
             steps {
                 bat "${DOCKER_COMPOSE_CMD} up -d --build anomaly_detector"
-            }
-        }
-
-        stage('API Service') {
-            steps {
-                bat "${DOCKER_COMPOSE_CMD} up -d --build api_service"
-            }
-        }
-
-        stage('API SIG') {
-            steps {
-                bat "${DOCKER_COMPOSE_CMD} up -d --build api_sig"
             }
         }
 
@@ -178,9 +172,15 @@ services:
             }
         }
 
-        stage('Sensor Simulator') {
+        stage('API SIG') {
             steps {
-                bat "${DOCKER_COMPOSE_CMD} up -d --build sensor_simulator"
+                bat "${DOCKER_COMPOSE_CMD} up -d --build api_sig"
+            }
+        }
+
+        stage('API Service') {
+            steps {
+                bat "${DOCKER_COMPOSE_CMD} up -d --build api_service"
             }
         }
 
