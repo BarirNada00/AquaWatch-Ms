@@ -11,12 +11,39 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '📥 Récupération du code...'
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/master']],
-                    extensions: [[$class: 'CloneOption', depth: 1, shallow: true, timeout: 30, noTags: true]],
-                    userRemoteConfigs: [[url: 'https://github.com/BarirNada00/AquaWatch-Ms.git']]
-                ])
+                echo '🔧 Nettoyage du workspace...'
+                bat '''
+                    if exist .git rmdir /s /q .git 2>nul
+                    for /d %%i in (*) do if "%%i" neq "." if "%%i" neq ".." rmdir /s /q "%%i" 2>nul
+                    for %%i in (*) do del /q "%%i" 2>nul
+                '''
+                script {
+                    try {
+                        checkout([
+                            $class: 'GitSCM',
+                            branches: [[name: '*/master']],
+                            extensions: [
+                                [$class: 'CloneOption', depth: 1, shallow: true, timeout: 30, noTags: true],
+                                [$class: 'CleanBeforeCheckout']
+                            ],
+                            userRemoteConfigs: [[url: 'https://github.com/BarirNada00/AquaWatch-Ms.git']]
+                        ])
+                        echo '✅ Checkout réussi'
+                        bat 'git status'
+                    } catch (Exception e) {
+                        echo "❌ Erreur lors du checkout: ${e.getMessage()}"
+                        echo '🔄 Tentative de récupération manuelle...'
+                        bat '''
+                            git init
+                            git config --global user.email "jenkins@local"
+                            git config --global user.name "Jenkins CI"
+                            git remote add origin https://github.com/BarirNada00/AquaWatch-Ms.git
+                            git fetch --depth 1 origin master
+                            git checkout -b master FETCH_HEAD
+                            git status
+                        '''
+                    }
+                }
             }
         }
 
