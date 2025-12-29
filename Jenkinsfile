@@ -11,36 +11,54 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '📥 Récupération du code...'
-                echo '🔧 Nettoyage du workspace...'
+                echo '🔧 Nettoyage complet du workspace...'
                 bat '''
-                    if exist .git rmdir /s /q .git 2>nul
-                    for /d %%i in (*) do if "%%i" neq "." if "%%i" neq ".." rmdir /s /q "%%i" 2>nul
-                    for %%i in (*) do del /q "%%i" 2>nul
+                    @echo off
+                    echo Nettoyage du workspace...
+                    if exist .git (
+                        echo Suppression du dossier .git...
+                        rmdir /s /q .git 2>nul
+                    )
+                    for /d %%i in (*) do (
+                        if "%%i" neq "." if "%%i" neq ".." (
+                            echo Suppression du dossier %%i...
+                            rmdir /s /q "%%i" 2>nul
+                        )
+                    )
+                    for %%i in (*) do (
+                        echo Suppression du fichier %%i...
+                        del /q "%%i" 2>nul
+                    )
+                    echo Workspace nettoyé.
                 '''
                 script {
                     try {
+                        echo '🔄 Tentative de checkout standard...'
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: '*/master']],
                             extensions: [
                                 [$class: 'CloneOption', depth: 1, shallow: true, timeout: 30, noTags: true],
-                                [$class: 'CleanBeforeCheckout']
+                                [$class: 'WipeWorkspace']
                             ],
                             userRemoteConfigs: [[url: 'https://github.com/BarirNada00/AquaWatch-Ms.git']]
                         ])
                         echo '✅ Checkout réussi'
                         bat 'git status'
                     } catch (Exception e) {
-                        echo "❌ Erreur lors du checkout: ${e.getMessage()}"
-                        echo '🔄 Tentative de récupération manuelle...'
+                        echo "❌ Erreur lors du checkout standard: ${e.getMessage()}"
+                        echo '🔄 Tentative de récupération manuelle complète...'
                         bat '''
+                            echo Initialisation Git manuelle...
                             git init
                             git config --global user.email "jenkins@local"
                             git config --global user.name "Jenkins CI"
-                            git remote add origin https://github.com/BarirNada00/AquaWatch-Ms.git
+                            git remote add origin https://github.com/BarirNada00/AquaWatch-Ms.git 2>nul || git remote set-url origin https://github.com/BarirNada00/AquaWatch-Ms.git
                             git fetch --depth 1 origin master
                             git checkout -b master FETCH_HEAD
+                            git branch --set-upstream-to=origin/master master
                             git status
+                            echo Récupération manuelle terminée.
                         '''
                     }
                 }
