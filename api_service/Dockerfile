@@ -11,10 +11,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy common utilities and config
-COPY common/ /app/common/
+COPY ../common/ /app/common/
 
 # Copy API service code
-COPY api_service/*.py .
+COPY *.py .
 
 # Create shared data directory
 RUN mkdir -p /app/data
