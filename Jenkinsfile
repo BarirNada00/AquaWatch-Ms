@@ -125,7 +125,7 @@ services:
       test: ["CMD-SHELL", "exit 0"]
 
   minio:
-    image: minio/minio:RELEASE.2023-12-20T01-07-19Z
+    image: minio/minio:latest
     container_name: ci-minio-${BUILD_NUMBER}
     ports: ["19000:9000", "19002:9001"]
     command: server /data --console-address ":9001"
@@ -199,11 +199,18 @@ services:
         stage('Docker Check') {
             steps {
                 echo '🔍 Vérification de Docker...'
-                bat '''
-                    docker --version
-                    docker info
-                    echo "✅ Docker est opérationnel"
-                '''
+                script {
+                    try {
+                        bat 'docker --version'
+                        bat 'docker info'
+                        echo '✅ Docker est opérationnel'
+                    } catch (Exception e) {
+                        echo '❌ Docker n\'est pas accessible ou n\'est pas démarré'
+                        echo '🔧 Veuillez démarrer Docker Desktop et relancer le pipeline'
+                        echo '💡 Assurez-vous que Docker Desktop est en cours d\'exécution sur l\'agent Jenkins'
+                        error('Docker is not accessible. Please start Docker Desktop and retry the pipeline.')
+                    }
+                }
             }
         }
 
