@@ -14,10 +14,7 @@ pipeline {
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/master']],
-                    extensions: [
-                        [$class: 'CloneOption', depth: 1, shallow: true, timeout: 30, noTags: true],
-                        [$class: 'WipeWorkspace']
-                    ],
+                    extensions: [[$class: 'CloneOption', depth: 1, shallow: true, timeout: 30, noTags: true]],
                     userRemoteConfigs: [[url: 'https://github.com/BarirNada00/AquaWatch-Ms.git']]
                 ])
             }
