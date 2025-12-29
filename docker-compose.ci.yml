@@ -8,8 +8,10 @@ services:
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
 
-  api-service:
-    build: ./api_service
+  api_service:
+    build:
+      context: .
+      dockerfile: ./api_service/Dockerfile
     ports:
       - "8000:8000"
     environment:
