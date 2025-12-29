@@ -9,12 +9,9 @@ import httpx
 import asyncpg
 from py_eureka_client.eureka_client import EurekaClient
 
-# Add the parent directory to sys.path to allow importing from common
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from common.config import Config
+from config import Config
 POSTGIS_DSN = Config.POSTGIS_DSN  # ✅ Utilisation de la config
-from common.models import Anomaly, AnomalySummary, HealthStatus, SensorReading
+from models import Anomaly, AnomalySummary, HealthStatus, SensorReading
 from summarizer import LLMSummarizer
 
 app = FastAPI(
