@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copier le code commun et le microservice
-COPY ../common/ /app/common/
+COPY common/ /app/common/
 COPY *.py .
 
 # Créer dossier pour stocker les anomalies

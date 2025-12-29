@@ -140,7 +140,9 @@ services:
       test: ["CMD-SHELL", "exit 0"]
 
   anomaly_detector:
-    build: ./anomaly_detector
+    build:
+      context: .
+      dockerfile: anomaly_detector/Dockerfile
     container_name: ci-anomaly-detector-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
