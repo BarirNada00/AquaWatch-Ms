@@ -178,9 +178,12 @@ services:
     build: ./sensor_simulator
     container_name: ci-sensor-simulator-${BUILD_NUMBER}
     environment:
-      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      SENSOR_ID: sensor-01
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_TOPIC: sensors/readings
     ports: ["18004:8004"]
-    depends_on: [eureka-server]
+    depends_on: [anomaly_detector, mosquitto]
 
   web_unifiee:
     build: ./web-unifiee

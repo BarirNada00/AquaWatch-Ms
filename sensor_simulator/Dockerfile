@@ -2,10 +2,10 @@ FROM node:20-slim
 
 WORKDIR /app
 
-COPY sensor_simulator/package*.json ./
+COPY package*.json ./
 RUN npm install
 
-COPY sensor_simulator/*.js ./
+COPY *.js ./
 
 EXPOSE 8002
 

@@ -70,6 +70,19 @@ services:
       timeout: 10s
       retries: 3
 
+  sensor_simulator:
+    build: ./sensor_simulator
+    ports:
+      - "8002:8002"
+    environment:
+      - SENSOR_ID=sensor-01
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - MQTT_TOPIC=sensors/readings
+    depends_on:
+      - anomaly-detector
+      - mosquitto
+
   timescaledb:
     image: timescale/timescaledb:latest-pg15
     environment:
@@ -103,6 +116,17 @@ services:
       timeout: 10s
       retries: 3
 
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf:rw
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
 volumes:
   timescale_data:
   postgis_data:
+  mosquitto_data:
+  mosquitto_log:
