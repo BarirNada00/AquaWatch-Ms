@@ -125,7 +125,7 @@ services:
       test: ["CMD-SHELL", "exit 0"]
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2023-12-20T01-07-19Z
     container_name: ci-minio-${BUILD_NUMBER}
     ports: ["19000:9000", "19002:9001"]
     command: server /data --console-address ":9001"
@@ -196,10 +196,44 @@ services:
             }
         }
 
+        stage('Docker Check') {
+            steps {
+                echo '🔍 Vérification de Docker...'
+                bat '''
+                    docker --version
+                    docker info
+                    echo "✅ Docker est opérationnel"
+                '''
+            }
+        }
+
         stage('Infrastructure') {
             steps {
                 echo '🗄️ Démarrage Infrastructure...'
-                bat "${DOCKER_COMPOSE_CMD} up -d eureka-server timescaledb postgis mosquitto geoserver minio ollama"
+                script {
+                    def maxRetries = 3
+                    def retryCount = 0
+                    def success = false
+
+                    while (retryCount < maxRetries && !success) {
+                        try {
+                            echo "Tentative ${retryCount + 1}/${maxRetries} de démarrage de l'infrastructure..."
+                            bat "${DOCKER_COMPOSE_CMD} up -d eureka-server timescaledb postgis mosquitto geoserver minio ollama"
+                            success = true
+                            echo '✅ Infrastructure démarrée avec succès'
+                        } catch (Exception e) {
+                            retryCount++
+                            echo "❌ Échec tentative ${retryCount}: ${e.getMessage()}"
+                            if (retryCount < maxRetries) {
+                                echo "🔄 Nouvelle tentative dans 10 secondes..."
+                                bat 'ping -n 11 127.0.0.1 > nul'
+                            } else {
+                                echo "❌ Toutes les tentatives ont échoué"
+                                throw e
+                            }
+                        }
+                    }
+                }
                 bat 'ping -n 16 127.0.0.1 > nul'
             }
         }
