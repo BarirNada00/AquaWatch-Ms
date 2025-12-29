@@ -150,7 +150,7 @@ services:
             steps {
                 echo '🗄️ Démarrage Infrastructure...'
                 bat "${DOCKER_COMPOSE_CMD} up -d eureka-server timescaledb postgis mosquitto geoserver minio ollama"
-                bat 'timeout /t 15 /nobreak > nul'
+                bat 'ping -n 16 127.0.0.1 > nul'
             }
         }
 
@@ -187,7 +187,7 @@ services:
         stage('Web Interface') {
             steps {
                 bat "${DOCKER_COMPOSE_CMD} up -d --build web_unifiee"
-                bat 'timeout /t 10 /nobreak > nul'
+                bat 'ping -n 11 127.0.0.1 > nul'
             }
         }
 
