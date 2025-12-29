@@ -1,0 +1,2 @@
+- [x] Replace timeout command in Infrastructure stage with ping command
+- [ ] Replace timeout command in Web Interface stage with ping command
