@@ -7,12 +7,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Installer les dépendances Python
-COPY anomaly_detector/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copier le code commun et le microservice
-COPY common/ /app/common/
-COPY anomaly_detector/*.py .
+COPY ../common/ /app/common/
+COPY *.py .
 
 # Créer dossier pour stocker les anomalies
 RUN mkdir -p /app/data
