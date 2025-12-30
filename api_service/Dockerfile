@@ -7,11 +7,11 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Install dependencies
-COPY api_service/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy API service code
-COPY api_service/*.py .
+COPY *.py .
 
 # Create shared data directory
 RUN mkdir -p /app/data
