@@ -231,7 +231,7 @@ async def lifespan(app: FastAPI):
             app_name='anomaly-detector',
             eureka_server="http://eureka-server:8761/eureka/",
             instance_host='anomaly-detector',
-            instance_port=8001
+            instance_port=int(os.getenv("SERVICE_PORT", 8001))
         )
         eureka_client.register()
         logger.info("Registered with Eureka server")

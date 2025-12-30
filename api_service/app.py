@@ -27,7 +27,7 @@ eureka_client = EurekaClient(
     app_name='api-service',
     eureka_server="http://eureka-server:8761/eureka/",
     instance_host='api-service',
-    instance_port=8004
+    instance_port=int(os.getenv("SERVICE_PORT", 8004))
 )
 eureka_client.register()
 

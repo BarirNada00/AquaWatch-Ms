@@ -2,13 +2,14 @@ version: '3.8'
 
 services:
   eureka-server:
-    image: springcloud/eureka
+    image: steeltoeoss/eureka-server:latest
     ports:
       - "8761:8761"
     environment:
       - EUREKA_INSTANCE_HOSTNAME=eureka-server
       - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
       - EUREKA_CLIENT_FETCH_REGISTRY=false
+      - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=false
     deploy:
       resources:
         limits:
@@ -22,11 +23,11 @@ services:
       - "8000:8000"
     environment:
       - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
-      - DATABASE_URL=postgresql://user:password@timescaledb:5432/aquawatch
+      - POSTGIS_DSN=postgresql://aquawatch:example@postgis:5432/aquawatch_gis
       - ENVIRONMENT=staging
     depends_on:
       - eureka-server
-      - timescaledb
+      - postgis
     deploy:
       replicas: 2
       resources:
@@ -43,10 +44,12 @@ services:
       - "8001:8001"
     environment:
       - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
-      - DATABASE_URL=postgresql://user:password@postgis:5432/aquawatch
+      - TIMESCALEDB_DSN=postgresql://aquawatch:example@timescaledb:5432/aquawatch
+      - POSTGIS_DSN=postgresql://aquawatch:example@postgis:5432/aquawatch_gis
       - ENVIRONMENT=staging
     depends_on:
       - eureka-server
+      - timescaledb
       - postgis
     deploy:
       replicas: 2
@@ -64,6 +67,7 @@ services:
       - "8002:8002"
     environment:
       - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
+      - TIMESCALEDB_DSN=postgresql://aquawatch:example@timescaledb:5432/aquawatch
       - ENVIRONMENT=staging
     depends_on:
       - eureka-server
@@ -140,8 +144,8 @@ services:
     image: timescale/timescaledb:latest-pg15
     environment:
       POSTGRES_DB: aquawatch
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
     ports:
       - "5432:5432"
     volumes:
@@ -158,9 +162,9 @@ services:
   postgis:
     image: postgis/postgis:15-3.3
     environment:
-      POSTGRES_DB: aquawatch
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: aquawatch_gis
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
     ports:
       - "5433:5432"
     volumes:
@@ -199,7 +203,6 @@ services:
     image: eclipse-mosquitto
     ports:
       - "1883:1883"
-      - "9001:9001"
     volumes:
       - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf
     deploy:

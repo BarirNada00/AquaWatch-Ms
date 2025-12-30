@@ -16,7 +16,7 @@ eureka_client = EurekaClient(
     app_name='satellite-processor',
     eureka_server="http://eureka-server:8761/eureka/",
     instance_host='satellite-processor',
-    instance_port=5000
+    instance_port=int(os.getenv("SERVICE_PORT", 5000))
 )
 eureka_client.register()
 

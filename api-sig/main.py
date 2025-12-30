@@ -37,7 +37,7 @@ eureka_client = EurekaClient(
     app_name='api-sig',
     eureka_server="http://eureka-server:8761/eureka/",
     instance_host='api-sig',
-    instance_port=8001
+    instance_port=8000
 )
 eureka_client.register()
 

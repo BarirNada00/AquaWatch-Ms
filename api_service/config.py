@@ -3,11 +3,11 @@ import os
 
 class Config:
     # Database configurations
-    POSTGIS_DSN = os.getenv("DATABASE_URL", "postgresql://user:password@postgis:5432/aquawatch")
+    POSTGIS_DSN = os.getenv("POSTGIS_DSN", "postgresql://aquawatch:example@postgis:5432/aquawatch_gis")
     
     # Service URLs
     ANOMALY_DETECTOR_HOST = os.getenv("ANOMALY_DETECTOR_HOST", "anomaly-detector")
-    ANOMALY_DETECTOR_PORT = int(os.getenv("ANOMALY_DETECTOR_PORT", "8002"))
+    ANOMALY_DETECTOR_PORT = int(os.getenv("ANOMALY_DETECTOR_PORT", "8001"))
     
     SENSOR_SIMULATOR_HOST = os.getenv("SENSOR_SIMULATOR_HOST", "sensor_simulator")
     SENSOR_SIMULATOR_PORT = int(os.getenv("SENSOR_SIMULATOR_PORT", "8002"))

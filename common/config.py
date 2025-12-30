@@ -62,9 +62,9 @@ class Config:
     )
 
     # --- LLM (Ollama) ---
-    OLLAMA_HOST: str = "ollama"
-    OLLAMA_PORT: int = 11434
-    LLM_MODEL_NAME: str = "gemma2:2b"  # ✅ Remplacez "mistral"
+    OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "ollama")
+    OLLAMA_PORT: int = int(os.getenv("OLLAMA_PORT", 11434))
+    LLM_MODEL_NAME: str = os.getenv("LLM_MODEL_NAME", "gemma2:2b")  # ✅ Remplacez "mistral"
     LLM_MAX_NEW_TOKENS: int = 100    # ✅ Réduisez pour accélérer la génération
     LLM_TEMPERATURE: float = 0.0  # Réduit à 0 pour accélérer la génération
 
@@ -74,7 +74,3 @@ class Config:
 
     SENSOR_SIMULATOR_HOST: str = "sensor_simulator"  # Service name in docker-compose
     SENSOR_SIMULATOR_PORT: int = 8002
-
-    
-    DATA_DIR = "/app/data"
-    SUMMARY_FILE: str = os.path.join(DATA_DIR, "summary.json")
