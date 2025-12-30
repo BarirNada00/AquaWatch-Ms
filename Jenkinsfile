@@ -326,8 +326,8 @@ volumes:
                     // Test des endpoints API avec PowerShell
                     powershell """
                         try {
-                            Invoke-WebRequest -Uri "http://localhost:\${18000 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://localhost:\${18001 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://localhost:\${18000 + BUILD_NUMBER}/status" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://localhost:\${18001 + BUILD_NUMBER}/api/health" -Method GET -TimeoutSec 10
                             Invoke-WebRequest -Uri "http://localhost:\${18002 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
                             Invoke-WebRequest -Uri "http://localhost:\${18003 + BUILD_NUMBER}/satellite_processor/health" -Method GET -TimeoutSec 10
                             Invoke-WebRequest -Uri "http://localhost:\${18761 + BUILD_NUMBER}/actuator/health" -Method GET -TimeoutSec 10
