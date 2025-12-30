@@ -276,7 +276,9 @@ volumes:
 
         stage('Satellite Processor') {
             steps {
-                bat "${DOCKER_COMPOSE_CMD} up -d --build satellite_processor"
+                timeout(time: 30, unit: 'MINUTES') {
+                    bat "${DOCKER_COMPOSE_CMD} up -d --build satellite_processor"
+                }
             }
         }
 
