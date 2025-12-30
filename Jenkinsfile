@@ -69,13 +69,31 @@ pipeline {
             steps {
                 echo '🔧 Génération Config ULTRA-ISOLÉE...'
                 // Recréation complète du fichier docker-compose pour isolation totale
-            writeFile file: 'docker-compose.ci.yml', text: """
+                script {
+                    def buildNum = BUILD_NUMBER.toInteger()
+                    def eurekaPort = 18761 + buildNum
+                    def timescaledbPort = 15433 + buildNum
+                    def postgisPort = 15434 + buildNum
+                    def mosquittoPort1 = 11883 + buildNum
+                    def mosquittoPort2 = 19003 + buildNum
+                    def geoserverPort = 18082 + buildNum
+                    def minioPort1 = 19000 + buildNum
+                    def minioPort2 = 19002 + buildNum
+                    def ollamaPort = 11134 + buildNum
+                    def anomalyDetectorPort = 18002 + buildNum
+                    def apiServicePort = 18000 + buildNum
+                    def apiSigPort = 18001 + buildNum
+                    def satelliteProcessorPort = 18003 + buildNum
+                    def sensorSimulatorPort = 18004 + buildNum
+                    def webUnifieePort = 10080 + buildNum
+
+                    writeFile file: 'docker-compose.ci.yml', text: """
 version: '3.8'
 services:
   eureka-server:
     image: steeltoeoss/eureka-server:latest
-    container_name: ci-eureka-\${BUILD_NUMBER}
-    ports: ["\${18761 + BUILD_NUMBER}:8761"]
+    container_name: ci-eureka-${BUILD_NUMBER}
+    ports: ["${eurekaPort}:8761"]
     environment:
       - EUREKA_SERVER_HOSTNAME=eureka-server
       - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=false
@@ -90,12 +108,12 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:2.14.0-pg15
-    container_name: ci-timescaledb-\${BUILD_NUMBER}
+    container_name: ci-timescaledb-${BUILD_NUMBER}
     environment:
       POSTGRES_DB: aquawatch
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
-    ports: ["\${15433 + BUILD_NUMBER}:5432"]
+    ports: ["${timescaledbPort}:5432"]
     volumes:
       - tsdata_ci:/var/lib/postgresql/data
       - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
@@ -106,12 +124,12 @@ services:
 
   postgis:
     image: postgis/postgis:15-3.4
-    container_name: ci-postgis-\${BUILD_NUMBER}
+    container_name: ci-postgis-${BUILD_NUMBER}
     environment:
       POSTGRES_DB: aquawatch_gis
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
-    ports: ["\${15434 + BUILD_NUMBER}:5432"]
+    ports: ["${postgisPort}:5432"]
     volumes:
       - postgis_data_ci:/var/lib/postgresql/data
     healthcheck:
@@ -121,8 +139,8 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: ci-mosquitto-\${BUILD_NUMBER}
-    ports: ["\${11883 + BUILD_NUMBER}:1883", "\${19003 + BUILD_NUMBER}:9001"]
+    container_name: ci-mosquitto-${BUILD_NUMBER}
+    ports: ["${mosquittoPort1}:1883", "${mosquittoPort2}:9001"]
     volumes:
       - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf
     healthcheck:
@@ -131,23 +149,23 @@ services:
 
   geoserver:
     image: docker.osgeo.org/geoserver:2.28.0
-    container_name: ci-geoserver-\${BUILD_NUMBER}
-    ports: ["\${18082 + BUILD_NUMBER}:8080"]
+    container_name: ci-geoserver-${BUILD_NUMBER}
+    ports: ["${geoserverPort}:8080"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
   minio:
     image: minio/minio:latest
-    container_name: ci-minio-\${BUILD_NUMBER}
-    ports: ["\${19000 + BUILD_NUMBER}:9000", "\${19002 + BUILD_NUMBER}:9001"]
+    container_name: ci-minio-${BUILD_NUMBER}
+    ports: ["${minioPort1}:9000", "${minioPort2}:9001"]
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
   ollama:
     image: ollama/ollama:latest
-    container_name: ci-ollama-\${BUILD_NUMBER}
-    ports: ["\${11134 + BUILD_NUMBER}:11434"]
+    container_name: ci-ollama-${BUILD_NUMBER}
+    ports: ["${ollamaPort}:11434"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
@@ -155,61 +173,62 @@ services:
     build:
       context: .
       dockerfile: anomaly_detector/Dockerfile
-    container_name: ci-anomaly-detector-\${BUILD_NUMBER}
+    container_name: ci-anomaly-detector-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
-    ports: ["\${18002 + BUILD_NUMBER}:8001"]
+    ports: ["${anomalyDetectorPort}:8001"]
     depends_on: [timescaledb, eureka-server]
 
   api_service:
     build: ./api_service
-    container_name: ci-api-service-\${BUILD_NUMBER}
+    container_name: ci-api-service-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
-    ports: ["\${18000 + BUILD_NUMBER}:8000"]
+    ports: ["${apiServicePort}:8000"]
     depends_on: [anomaly_detector, ollama]
 
   api_sig:
     build: ./api-sig
-    container_name: ci-api-sig-\${BUILD_NUMBER}
+    container_name: ci-api-sig-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
-    ports: ["\${18001 + BUILD_NUMBER}:8000"]
+    ports: ["${apiSigPort}:8000"]
     depends_on: [postgis, eureka-server]
 
   satellite_processor:
     build: ./satellite_processor
-    container_name: ci-satellite-processor-\${BUILD_NUMBER}
+    container_name: ci-satellite-processor-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-    ports: ["\${18003 + BUILD_NUMBER}:5000"]
+    ports: ["${satelliteProcessorPort}:5000"]
     depends_on: [eureka-server]
 
   sensor_simulator:
     build: ./sensor_simulator
-    container_name: ci-sensor-simulator-\${BUILD_NUMBER}
+    container_name: ci-sensor-simulator-${BUILD_NUMBER}
     environment:
       SENSOR_ID: sensor-01
       MQTT_BROKER_HOST: mosquitto
       MQTT_BROKER_PORT: 1883
       MQTT_TOPIC: sensors/readings
-    ports: ["\${18004 + BUILD_NUMBER}:8002"]
+    ports: ["${sensorSimulatorPort}:8002"]
     depends_on: [anomaly_detector, mosquitto]
 
   web_unifiee:
     build: ./web-unifiee
-    container_name: ci-web-unifiee-\${BUILD_NUMBER}
-    ports: ["\${10080 + BUILD_NUMBER}:80"]
+    container_name: ci-web-unifiee-${BUILD_NUMBER}
+    ports: ["${webUnifieePort}:80"]
     depends_on: [api_service, api_sig]
 
 volumes:
   tsdata_ci:
   postgis_data_ci:
 """
+                }
             }
         }
 
