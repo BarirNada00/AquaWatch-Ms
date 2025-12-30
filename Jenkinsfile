@@ -69,13 +69,20 @@ pipeline {
             steps {
                 echo '🔧 Génération Config ULTRA-ISOLÉE...'
                 // Recréation complète du fichier docker-compose pour isolation totale
-                writeFile file: 'docker-compose.ci.yml', text: """
+            writeFile file: 'docker-compose.ci.yml', text: """
 version: '3.8'
 services:
   eureka-server:
     image: steeltoeoss/eureka-server:latest
-    container_name: ci-eureka-${BUILD_NUMBER}
+    container_name: ci-eureka-\${BUILD_NUMBER}
     ports: ["18761:8761"]
+    environment:
+      - EUREKA_SERVER_HOSTNAME=eureka-server
+      - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=false
+      - EUREKA_SERVER_PEER_NODE_CONNECT_TIMEOUT_MS=300000
+      - EUREKA_SERVER_PEER_NODE_READ_TIMEOUT_MS=300000
+      - EUREKA_SERVER_PEER_NODE_TOTAL_CONNECTIONS=1
+      - EUREKA_SERVER_PEER_NODE_TOTAL_CONNECTIONS_PER_HOST=1
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8761/actuator/health"]
       interval: 10s
@@ -83,12 +90,15 @@ services:
 
   timescaledb:
     image: timescale/timescaledb:2.14.0-pg15
-    container_name: ci-timescaledb-${BUILD_NUMBER}
+    container_name: ci-timescaledb-\${BUILD_NUMBER}
     environment:
       POSTGRES_DB: aquawatch
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
     ports: ["15433:5432"]
+    volumes:
+      - tsdata_ci:/var/lib/postgresql/data
+      - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aquawatch"]
       interval: 10s
@@ -96,12 +106,14 @@ services:
 
   postgis:
     image: postgis/postgis:15-3.4
-    container_name: ci-postgis-${BUILD_NUMBER}
+    container_name: ci-postgis-\${BUILD_NUMBER}
     environment:
       POSTGRES_DB: aquawatch_gis
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
     ports: ["15434:5432"]
+    volumes:
+      - postgis_data_ci:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aquawatch"]
       interval: 10s
@@ -109,7 +121,7 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: ci-mosquitto-${BUILD_NUMBER}
+    container_name: ci-mosquitto-\${BUILD_NUMBER}
     ports: ["11883:1883", "19003:9001"]
     volumes:
       - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf
@@ -119,14 +131,14 @@ services:
 
   geoserver:
     image: docker.osgeo.org/geoserver:2.28.0
-    container_name: ci-geoserver-${BUILD_NUMBER}
+    container_name: ci-geoserver-\${BUILD_NUMBER}
     ports: ["18082:8080"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
   minio:
     image: minio/minio:latest
-    container_name: ci-minio-${BUILD_NUMBER}
+    container_name: ci-minio-\${BUILD_NUMBER}
     ports: ["19000:9000", "19002:9001"]
     command: server /data --console-address ":9001"
     healthcheck:
@@ -134,7 +146,7 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    container_name: ci-ollama-${BUILD_NUMBER}
+    container_name: ci-ollama-\${BUILD_NUMBER}
     ports: ["11134:11434"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
@@ -143,7 +155,7 @@ services:
     build:
       context: .
       dockerfile: anomaly_detector/Dockerfile
-    container_name: ci-anomaly-detector-${BUILD_NUMBER}
+    container_name: ci-anomaly-detector-\${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
@@ -152,7 +164,7 @@ services:
 
   api_service:
     build: ./api_service
-    container_name: ci-api-service-${BUILD_NUMBER}
+    container_name: ci-api-service-\${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
@@ -161,7 +173,7 @@ services:
 
   api_sig:
     build: ./api-sig
-    container_name: ci-api-sig-${BUILD_NUMBER}
+    container_name: ci-api-sig-\${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
@@ -171,7 +183,7 @@ services:
 
   satellite_processor:
     build: ./satellite_processor
-    container_name: ci-satellite-processor-${BUILD_NUMBER}
+    container_name: ci-satellite-processor-\${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
     ports: ["18003:5000"]
@@ -179,7 +191,7 @@ services:
 
   sensor_simulator:
     build: ./sensor_simulator
-    container_name: ci-sensor-simulator-${BUILD_NUMBER}
+    container_name: ci-sensor-simulator-\${BUILD_NUMBER}
     environment:
       SENSOR_ID: sensor-01
       MQTT_BROKER_HOST: mosquitto
@@ -190,9 +202,13 @@ services:
 
   web_unifiee:
     build: ./web-unifiee
-    container_name: ci-web-unifiee-${BUILD_NUMBER}
+    container_name: ci-web-unifiee-\${BUILD_NUMBER}
     ports: ["10080:80"]
     depends_on: [api_service, api_sig]
+
+volumes:
+  tsdata_ci:
+  postgis_data_ci:
 """
             }
         }
