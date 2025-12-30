@@ -82,28 +82,28 @@ services:
       timeout: 5s
 
   timescaledb:
-    image: timescale/timescaledb:latest-pg15
+    image: timescale/timescaledb:2.14.0-pg15
     container_name: ci-timescaledb-${BUILD_NUMBER}
     environment:
       POSTGRES_DB: aquawatch
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
     ports: ["15433:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
       interval: 10s
       timeout: 5s
 
   postgis:
-    image: postgis/postgis:15-3.3
+    image: postgis/postgis:15-3.4
     container_name: ci-postgis-${BUILD_NUMBER}
     environment:
-      POSTGRES_DB: aquawatch
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: aquawatch_gis
+      POSTGRES_USER: aquawatch
+      POSTGRES_PASSWORD: example
     ports: ["15434:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
       interval: 10s
       timeout: 5s
 
@@ -118,7 +118,7 @@ services:
        interval: 30s
 
   geoserver:
-    image: kartoza/geoserver:latest
+    image: docker.osgeo.org/geoserver:2.28.0
     container_name: ci-geoserver-${BUILD_NUMBER}
     ports: ["18082:8080"]
     healthcheck:
@@ -133,7 +133,7 @@ services:
       test: ["CMD-SHELL", "exit 0"]
 
   ollama:
-    image: ollama/ollama
+    image: ollama/ollama:latest
     container_name: ci-ollama-${BUILD_NUMBER}
     ports: ["11134:11434"]
     healthcheck:
@@ -146,8 +146,8 @@ services:
     container_name: ci-anomaly-detector-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-      DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/aquawatch
-    ports: ["18002:8002"]
+      TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
+    ports: ["18002:8001"]
     depends_on: [timescaledb, eureka-server]
 
   api_service:
@@ -155,17 +155,18 @@ services:
     container_name: ci-api-service-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-      DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/aquawatch
+      POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
     ports: ["18000:8000"]
-    depends_on: [timescaledb, eureka-server]
+    depends_on: [anomaly_detector, ollama]
 
   api_sig:
     build: ./api-sig
     container_name: ci-api-sig-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-      DATABASE_URL: postgresql://postgres:postgres@postgis:5432/aquawatch
-    ports: ["18001:8001"]
+      TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
+      POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
+    ports: ["18001:8000"]
     depends_on: [postgis, eureka-server]
 
   satellite_processor:
@@ -173,7 +174,7 @@ services:
     container_name: ci-satellite-processor-${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-    ports: ["18003:8003"]
+    ports: ["18003:5000"]
     depends_on: [eureka-server]
 
   sensor_simulator:
@@ -184,7 +185,7 @@ services:
       MQTT_BROKER_HOST: mosquitto
       MQTT_BROKER_PORT: 1883
       MQTT_TOPIC: sensors/readings
-    ports: ["18004:8004"]
+    ports: ["18004:8002"]
     depends_on: [anomaly_detector, mosquitto]
 
   web_unifiee:
@@ -291,6 +292,7 @@ services:
                             Invoke-WebRequest -Uri "http://host.docker.internal:18000/health" -Method GET -TimeoutSec 10
                             Invoke-WebRequest -Uri "http://host.docker.internal:18001/health" -Method GET -TimeoutSec 10
                             Invoke-WebRequest -Uri "http://host.docker.internal:18002/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:18003/satellite_processor/health" -Method GET -TimeoutSec 10
                             Invoke-WebRequest -Uri "http://host.docker.internal:18761" -Method GET -TimeoutSec 10
                             Write-Host "✅ Tous les health checks sont passés!"
                         } catch {

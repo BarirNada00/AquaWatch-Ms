@@ -14,10 +14,10 @@
 4. **Dependencies**: Some dependencies may be missing or incorrect.
 
 ## Tasks
-- [ ] Fix ports in docker-compose.ci.yml for consistency
-- [ ] Fix environment variables to match service expectations
-- [ ] Update health checks to include satellite_processor and correct ports
-- [ ] Ensure Eureka registration uses correct ports
+- [x] Fix ports in docker-compose.ci.yml for consistency
+- [x] Fix environment variables to match service expectations
+- [x] Update health checks to include satellite_processor and correct ports
+- [x] Ensure Eureka registration uses correct ports
 - [ ] Test the pipeline after changes
 
 ## Files to Modify
