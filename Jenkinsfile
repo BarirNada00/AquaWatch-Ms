@@ -75,7 +75,7 @@ services:
   eureka-server:
     image: steeltoeoss/eureka-server:latest
     container_name: ci-eureka-\${BUILD_NUMBER}
-    ports: ["18761:8761"]
+    ports: ["\${18761 + BUILD_NUMBER}:8761"]
     environment:
       - EUREKA_SERVER_HOSTNAME=eureka-server
       - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=false
@@ -95,7 +95,7 @@ services:
       POSTGRES_DB: aquawatch
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
-    ports: ["15433:5432"]
+    ports: ["\${15433 + BUILD_NUMBER}:5432"]
     volumes:
       - tsdata_ci:/var/lib/postgresql/data
       - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
@@ -111,7 +111,7 @@ services:
       POSTGRES_DB: aquawatch_gis
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
-    ports: ["15434:5432"]
+    ports: ["\${15434 + BUILD_NUMBER}:5432"]
     volumes:
       - postgis_data_ci:/var/lib/postgresql/data
     healthcheck:
@@ -122,7 +122,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: ci-mosquitto-\${BUILD_NUMBER}
-    ports: ["11883:1883", "19003:9001"]
+    ports: ["\${11883 + BUILD_NUMBER}:1883", "\${19003 + BUILD_NUMBER}:9001"]
     volumes:
       - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf
     healthcheck:
@@ -132,14 +132,14 @@ services:
   geoserver:
     image: docker.osgeo.org/geoserver:2.28.0
     container_name: ci-geoserver-\${BUILD_NUMBER}
-    ports: ["18082:8080"]
+    ports: ["\${18082 + BUILD_NUMBER}:8080"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
   minio:
     image: minio/minio:latest
     container_name: ci-minio-\${BUILD_NUMBER}
-    ports: ["19000:9000", "19002:9001"]
+    ports: ["\${19000 + BUILD_NUMBER}:9000", "\${19002 + BUILD_NUMBER}:9001"]
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
@@ -147,7 +147,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ci-ollama-\${BUILD_NUMBER}
-    ports: ["11134:11434"]
+    ports: ["\${11134 + BUILD_NUMBER}:11434"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
@@ -159,7 +159,7 @@ services:
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
-    ports: ["18002:8001"]
+    ports: ["\${18002 + BUILD_NUMBER}:8001"]
     depends_on: [timescaledb, eureka-server]
 
   api_service:
@@ -168,7 +168,7 @@ services:
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
-    ports: ["18000:8000"]
+    ports: ["\${18000 + BUILD_NUMBER}:8000"]
     depends_on: [anomaly_detector, ollama]
 
   api_sig:
@@ -178,7 +178,7 @@ services:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
-    ports: ["18001:8000"]
+    ports: ["\${18001 + BUILD_NUMBER}:8000"]
     depends_on: [postgis, eureka-server]
 
   satellite_processor:
@@ -186,7 +186,7 @@ services:
     container_name: ci-satellite-processor-\${BUILD_NUMBER}
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-    ports: ["18003:5000"]
+    ports: ["\${18003 + BUILD_NUMBER}:5000"]
     depends_on: [eureka-server]
 
   sensor_simulator:
@@ -197,13 +197,13 @@ services:
       MQTT_BROKER_HOST: mosquitto
       MQTT_BROKER_PORT: 1883
       MQTT_TOPIC: sensors/readings
-    ports: ["18004:8002"]
+    ports: ["\${18004 + BUILD_NUMBER}:8002"]
     depends_on: [anomaly_detector, mosquitto]
 
   web_unifiee:
     build: ./web-unifiee
     container_name: ci-web-unifiee-\${BUILD_NUMBER}
-    ports: ["10080:80"]
+    ports: ["\${10080 + BUILD_NUMBER}:80"]
     depends_on: [api_service, api_sig]
 
 volumes:
@@ -305,19 +305,19 @@ volumes:
             steps {
                 script {
                     // Test des endpoints API avec PowerShell
-                    powershell '''
+                    powershell """
                         try {
-                            Invoke-WebRequest -Uri "http://host.docker.internal:18000/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://host.docker.internal:18001/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://host.docker.internal:18002/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://host.docker.internal:18003/satellite_processor/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://host.docker.internal:18761" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:\${18000 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:\${18001 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:\${18002 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:\${18003 + BUILD_NUMBER}/satellite_processor/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://host.docker.internal:\${18761 + BUILD_NUMBER}" -Method GET -TimeoutSec 10
                             Write-Host "✅ Tous les health checks sont passés!"
                         } catch {
-                            Write-Error "❌ Health check failed: $_"
+                            Write-Error "❌ Health check failed: \$_"
                             exit 1
                         }
-                    '''
+                    """
                 }
             }
         }
