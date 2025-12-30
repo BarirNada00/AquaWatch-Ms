@@ -179,6 +179,11 @@ services:
       TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
     ports: ["${anomalyDetectorPort}:8001"]
     depends_on: [timescaledb, eureka-server]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   api_service:
     build: ./api_service
@@ -188,6 +193,11 @@ services:
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
     ports: ["${apiServicePort}:8000"]
     depends_on: [anomaly_detector, ollama]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api_sig:
     build: ./api-sig
@@ -198,6 +208,11 @@ services:
       POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
     ports: ["${apiSigPort}:8000"]
     depends_on: [postgis, eureka-server]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   satellite_processor:
     build: ./satellite_processor
@@ -206,6 +221,11 @@ services:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
     ports: ["${satelliteProcessorPort}:5000"]
     depends_on: [eureka-server]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/satellite_processor/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   sensor_simulator:
     build: ./sensor_simulator
@@ -322,15 +342,24 @@ volumes:
 
         stage('Health Checks') {
             steps {
+                // Attendre que les services soient pleinement opérationnels
+                bat 'ping -n 61 127.0.0.1 > nul'
                 script {
+                    def buildNum = BUILD_NUMBER.toInteger()
+                    def apiServicePort = 18000 + buildNum
+                    def apiSigPort = 18001 + buildNum
+                    def anomalyDetectorPort = 18002 + buildNum
+                    def satelliteProcessorPort = 18003 + buildNum
+                    def eurekaPort = 18761 + buildNum
+
                     // Test des endpoints API avec PowerShell
                     powershell """
                         try {
-                            Invoke-WebRequest -Uri "http://localhost:\${18000 + BUILD_NUMBER}/status" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://localhost:\${18001 + BUILD_NUMBER}/api/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://localhost:\${18002 + BUILD_NUMBER}/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://localhost:\${18003 + BUILD_NUMBER}/satellite_processor/health" -Method GET -TimeoutSec 10
-                            Invoke-WebRequest -Uri "http://localhost:\${18761 + BUILD_NUMBER}/actuator/health" -Method GET -TimeoutSec 10
+                            Invoke-WebRequest -Uri "http://localhost:${apiServicePort}/status" -Method GET -TimeoutSec 30
+                            Invoke-WebRequest -Uri "http://localhost:${apiSigPort}/api/health" -Method GET -TimeoutSec 30
+                            Invoke-WebRequest -Uri "http://localhost:${anomalyDetectorPort}/health" -Method GET -TimeoutSec 30
+                            Invoke-WebRequest -Uri "http://localhost:${satelliteProcessorPort}/satellite_processor/health" -Method GET -TimeoutSec 30
+                            Invoke-WebRequest -Uri "http://localhost:${eurekaPort}/actuator/health" -Method GET -TimeoutSec 30
                             Write-Host "✅ Tous les health checks sont passés!"
                         } catch {
                             Write-Error "❌ Health check failed: \$_"
