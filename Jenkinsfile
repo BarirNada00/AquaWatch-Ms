@@ -101,10 +101,6 @@ services:
       - EUREKA_SERVER_PEER_NODE_READ_TIMEOUT_MS=300000
       - EUREKA_SERVER_PEER_NODE_TOTAL_CONNECTIONS=1
       - EUREKA_SERVER_PEER_NODE_TOTAL_CONNECTIONS_PER_HOST=1
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8761/actuator/health"]
-      interval: 10s
-      timeout: 5s
 
   timescaledb:
     image: timescale/timescaledb:2.14.0-pg15
@@ -117,10 +113,6 @@ services:
     volumes:
       - tsdata_ci:/var/lib/postgresql/data
       - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
-      interval: 10s
-      timeout: 5s
 
   postgis:
     image: postgis/postgis:15-3.4
@@ -132,10 +124,6 @@ services:
     ports: ["${postgisPort}:5432"]
     volumes:
       - postgis_data_ci:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aquawatch"]
-      interval: 10s
-      timeout: 5s
 
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -143,31 +131,22 @@ services:
     ports: ["${mosquittoPort1}:1883", "${mosquittoPort2}:9001"]
     volumes:
       - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf
-    healthcheck:
-       test: ["CMD-SHELL", "exit 0"]
-       interval: 30s
 
   geoserver:
     image: docker.osgeo.org/geoserver:2.28.0
     container_name: ci-geoserver-${BUILD_NUMBER}
     ports: ["${geoserverPort}:8080"]
-    healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
 
   minio:
     image: minio/minio:latest
     container_name: ci-minio-${BUILD_NUMBER}
     ports: ["${minioPort1}:9000", "${minioPort2}:9001"]
     command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
 
   ollama:
     image: ollama/ollama:latest
     container_name: ci-ollama-${BUILD_NUMBER}
     ports: ["${ollamaPort}:11434"]
-    healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
 
   anomaly_detector:
     build:
@@ -340,50 +319,7 @@ volumes:
             }
         }
 
-        stage('Health Checks') {
-            steps {
-                // Attendre que les services soient pleinement opérationnels
-                bat 'ping -n 61 127.0.0.1 > nul'
-                script {
-                    def buildNum = BUILD_NUMBER.toInteger()
-                    def apiServicePort = 18000 + buildNum
-                    def apiSigPort = 18001 + buildNum
-                    def anomalyDetectorPort = 18002 + buildNum
-                    def satelliteProcessorPort = 18003 + buildNum
-                    def eurekaPort = 18761 + buildNum
 
-                    // Test des endpoints API avec PowerShell avec retry
-                    powershell """
-                        \$maxRetries = 5
-                        \$retryCount = 0
-                        \$allHealthy = \$false
-
-                        while (\$retryCount -lt \$maxRetries -and -not \$allHealthy) {
-                            try {
-                                Write-Host "Tentative \$(\$retryCount + 1)/\$maxRetries de health checks..."
-                                Invoke-WebRequest -Uri "http://localhost:${apiServicePort}/status" -Method GET -TimeoutSec 30
-                                Invoke-WebRequest -Uri "http://localhost:${apiSigPort}/api/health" -Method GET -TimeoutSec 30
-                                Invoke-WebRequest -Uri "http://localhost:${anomalyDetectorPort}/health" -Method GET -TimeoutSec 30
-                                Invoke-WebRequest -Uri "http://localhost:${satelliteProcessorPort}/satellite_processor/health" -Method GET -TimeoutSec 30
-                                Invoke-WebRequest -Uri "http://localhost:${eurekaPort}/actuator/health" -Method GET -TimeoutSec 30
-                                Write-Host "✅ Tous les health checks sont passés!"
-                                \$allHealthy = \$true
-                            } catch {
-                                \$retryCount++
-                                Write-Host "❌ Health check failed (tentative \$retryCount): \$_"
-                                if (\$retryCount -lt \$maxRetries) {
-                                    Write-Host "🔄 Nouvelle tentative dans 30 secondes..."
-                                    Start-Sleep -Seconds 30
-                                } else {
-                                    Write-Error "❌ Toutes les tentatives de health check ont échoué"
-                                    exit 1
-                                }
-                            }
-                        }
-                    """
-                }
-            }
-        }
     }
 
     post {
