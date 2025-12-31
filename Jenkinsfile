@@ -352,18 +352,33 @@ volumes:
                     def satelliteProcessorPort = 18003 + buildNum
                     def eurekaPort = 18761 + buildNum
 
-                    // Test des endpoints API avec PowerShell
+                    // Test des endpoints API avec PowerShell avec retry
                     powershell """
-                        try {
-                            Invoke-WebRequest -Uri "http://localhost:${apiServicePort}/status" -Method GET -TimeoutSec 30
-                            Invoke-WebRequest -Uri "http://localhost:${apiSigPort}/api/health" -Method GET -TimeoutSec 30
-                            Invoke-WebRequest -Uri "http://localhost:${anomalyDetectorPort}/health" -Method GET -TimeoutSec 30
-                            Invoke-WebRequest -Uri "http://localhost:${satelliteProcessorPort}/satellite_processor/health" -Method GET -TimeoutSec 30
-                            Invoke-WebRequest -Uri "http://localhost:${eurekaPort}/actuator/health" -Method GET -TimeoutSec 30
-                            Write-Host "✅ Tous les health checks sont passés!"
-                        } catch {
-                            Write-Error "❌ Health check failed: \$_"
-                            exit 1
+                        \$maxRetries = 5
+                        \$retryCount = 0
+                        \$allHealthy = \$false
+
+                        while (\$retryCount -lt \$maxRetries -and -not \$allHealthy) {
+                            try {
+                                Write-Host "Tentative \$(\$retryCount + 1)/\$maxRetries de health checks..."
+                                Invoke-WebRequest -Uri "http://localhost:${apiServicePort}/status" -Method GET -TimeoutSec 30
+                                Invoke-WebRequest -Uri "http://localhost:${apiSigPort}/api/health" -Method GET -TimeoutSec 30
+                                Invoke-WebRequest -Uri "http://localhost:${anomalyDetectorPort}/health" -Method GET -TimeoutSec 30
+                                Invoke-WebRequest -Uri "http://localhost:${satelliteProcessorPort}/satellite_processor/health" -Method GET -TimeoutSec 30
+                                Invoke-WebRequest -Uri "http://localhost:${eurekaPort}/actuator/health" -Method GET -TimeoutSec 30
+                                Write-Host "✅ Tous les health checks sont passés!"
+                                \$allHealthy = \$true
+                            } catch {
+                                \$retryCount++
+                                Write-Host "❌ Health check failed (tentative \$retryCount): \$_"
+                                if (\$retryCount -lt \$maxRetries) {
+                                    Write-Host "🔄 Nouvelle tentative dans 30 secondes..."
+                                    Start-Sleep -Seconds 30
+                                } else {
+                                    Write-Error "❌ Toutes les tentatives de health check ont échoué"
+                                    exit 1
+                                }
+                            }
                         }
                     """
                 }
