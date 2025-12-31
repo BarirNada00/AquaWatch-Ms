@@ -1,158 +1,122 @@
-version: '3.8'
+version: "3.8"
+
 services:
+
   eureka-server:
     image: steeltoeoss/eureka-server:latest
-    container_name: ci-eureka-1
     ports: ["18762:8761"]
-    environment:
-      - EUREKA_SERVER_HOSTNAME=eureka-server
-      - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=false
-      - EUREKA_SERVER_PEER_NODE_CONNECT_TIMEOUT_MS=300000
-      - EUREKA_SERVER_PEER_NODE_READ_TIMEOUT_MS=300000
-      - EUREKA_SERVER_PEER_NODE_TOTAL_CONNECTIONS=1
-      - EUREKA_SERVER_PEER_NODE_TOTAL_CONNECTIONS_PER_HOST=1
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
+      retries: 5
 
   timescaledb:
     image: timescale/timescaledb:2.14.0-pg15
-    container_name: ci-timescaledb-1
+    ports: ["15434:5432"]
     environment:
       POSTGRES_DB: aquawatch
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
-    ports: ["15434:5432"]
-    volumes:
-      - tsdata_ci:/var/lib/postgresql/data
-      - ./api_sig/init_postgis.sql:/docker-entrypoint-initdb.d/init_postgis.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aquawatch"]
       interval: 10s
       timeout: 5s
+      retries: 5
 
   postgis:
     image: postgis/postgis:15-3.4
-    container_name: ci-postgis-1
+    ports: ["15435:5432"]
     environment:
       POSTGRES_DB: aquawatch_gis
       POSTGRES_USER: aquawatch
       POSTGRES_PASSWORD: example
-    ports: ["15435:5432"]
-    volumes:
-      - postgis_data_ci:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aquawatch"]
       interval: 10s
       timeout: 5s
+      retries: 5
 
   mosquitto:
     image: eclipse-mosquitto:2.0
-    container_name: ci-mosquitto-1
-    ports: ["11884:1883", "19004:9001"]
-    volumes:
-      - ./mosquitto_config/mosquitto.conf:/mosquitto/config/mosquitto.conf
-    healthcheck:
-       test: ["CMD-SHELL", "exit 0"]
-       interval: 30s
-
-  geoserver:
-    image: docker.osgeo.org/geoserver:2.28.0
-    container_name: ci-geoserver-1
-    ports: ["18083:8080"]
-    healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
-
-  minio:
-    image: minio/minio:latest
-    container_name: ci-minio-1
-    ports: ["19001:9000", "19003:9001"]
-    command: server /data --console-address ":9001"
+    ports: ["11884:1883"]
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
 
   ollama:
     image: ollama/ollama:latest
-    container_name: ci-ollama-1
     ports: ["11135:11434"]
     healthcheck:
-      test: ["CMD-SHELL", "exit 0"]
-
-  anomaly_detector:
-    build:
-      context: .
-      dockerfile: anomaly_detector/Dockerfile
-    container_name: ci-anomaly-detector-1
-    environment:
-      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-      TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
-    ports: ["18003:8001"]
-    depends_on: [timescaledb, eureka-server]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 20s
       retries: 5
 
-  api_service:
-    build: ./api_service
-    container_name: ci-api-service-1
-    environment:
-      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-      POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
-    ports: ["18001:8000"]
-    depends_on: [anomaly_detector, ollama]
+  anomaly_detector:
+    build: ./anomaly_detector
+    ports: ["18003:8001"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 20s
       retries: 5
 
   api_sig:
     build: ./api-sig
-    container_name: ci-api-sig-1
-    environment:
-      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
-      TIMESCALEDB_DSN: postgresql://aquawatch:example@timescaledb:5432/aquawatch
-      POSTGIS_DSN: postgresql://aquawatch:example@postgis:5432/aquawatch_gis
     ports: ["18002:8000"]
-    depends_on: [postgis, eureka-server]
+    depends_on:
+      postgis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 20s
+      retries: 5
+
+  api_service:
+    build: ./api_service
+    ports: ["18001:8000"]
+    depends_on:
+      anomaly_detector:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      interval: 20s
       retries: 5
 
   satellite_processor:
     build: ./satellite_processor
-    container_name: ci-satellite-processor-1
-    environment:
-      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
     ports: ["18004:5000"]
-    depends_on: [eureka-server]
+    depends_on:
+      eureka-server:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/satellite_processor/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
       retries: 5
 
   sensor_simulator:
     build: ./sensor_simulator
-    container_name: ci-sensor-simulator-1
-    environment:
-      SENSOR_ID: sensor-01
-      MQTT_BROKER_HOST: mosquitto
-      MQTT_BROKER_PORT: 1883
-      MQTT_TOPIC: sensors/readings
-    ports: ["18005:8002"]
-    depends_on: [anomaly_detector, mosquitto]
+    depends_on:
+      anomaly_detector:
+        condition: service_healthy
 
   web_unifiee:
     build: ./web-unifiee
-    container_name: ci-web-unifiee-1
     ports: ["10081:80"]
-    depends_on: [api_service, api_sig]
+    depends_on:
+      api_service:
+        condition: service_healthy
+      api_sig:
+        condition: service_healthy
 
 volumes:
   tsdata_ci:
