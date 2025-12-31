@@ -18,7 +18,7 @@
 - [x] Fix environment variables to match service expectations
 - [x] Update health checks to include satellite_processor and correct ports
 - [x] Ensure Eureka registration uses correct ports
-- [ ] Test the pipeline after changes
+- [x] Test the pipeline after changes
 
 ## Files to Modify
 - Jenkinsfile: Update the writeFile for docker-compose.ci.yml and health checks
